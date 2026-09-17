@@ -1,6 +1,6 @@
 # Local configuration
 **/application.properties.local
-docker-compose.local
+docker-compose.yml.local
 
 # Environment variables
 .env
