@@ -1,18 +1,17 @@
+# Local configuration
+**/application.properties.local
+docker-compose.local
+
+# Environment variables
+.env
+
 # Maven
-target/
-!.mvn/wrapper/maven-wrapper.jar
+**/target/
 
 # IDE
 .idea/
 .vscode/
 *.iml
 
-# OS
-.DS_Store
-Thumbs.db
-
 # Logs
 *.log
-
-# Environment files
-.env
