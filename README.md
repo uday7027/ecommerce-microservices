@@ -1,6 +1,6 @@
 # E-Commerce Microservices Application
 
-A simple and scalable **E-Commerce backend application** built using Spring Boot Microservices. The application provides authentication, product management, and order management with JWT-based security, service discovery, inter-service communication, PostgreSQL databases, and Docker.
+A simple and scalable **E-Commerce backend application** built using Spring Boot Microservices. The application provides authentication, product management, order management, and event-driven notifications with JWT-based security, service discovery, inter-service communication, Apache Kafka, PostgreSQL databases, and Docker.
 
 ## 🚀 Features
 
@@ -13,6 +13,8 @@ A simple and scalable **E-Commerce backend application** built using Spring Boot
 * Service discovery using Eureka
 * API Gateway for routing requests
 * Inter-service communication using OpenFeign
+* Event-driven communication using Apache Kafka
+* Notification service for order events
 * Separate PostgreSQL database for each service
 * Dockerized services and databases using Docker Compose
 
@@ -32,6 +34,23 @@ A simple and scalable **E-Commerce backend application** built using Spring Boot
               |                 |                 |
               v                 v                 v
           auth-db           product-db          order-db
+                                                    |
+                                                    | Kafka Producer
+                                                    v
+                                             +-------------+
+                                             |    Kafka    |
+                                             | :9092       |
+                                             +------+------+
+                                                    |
+                                             order-events
+                                                    |
+                                                    v
+                                      Notification Service
+                                             :8084
+                                                    |
+                                                    v
+                                           Order Notification
+
 
                          Eureka Server
                             :8761
@@ -62,14 +81,22 @@ A simple and scalable **E-Commerce backend application** built using Spring Boot
 * Product and user information through OpenFeign
 * Stock availability check
 * Order total calculation
+* Publishes order events to Kafka
 
-### 4. API Gateway
+### 4. Notification Service
+
+* Consumes order events from Kafka
+* Processes order notification events
+* Demonstrates event-driven communication
+* Currently logs notifications to the console
+
+### 5. API Gateway
 
 * Single entry point for clients
 * Routes requests to respective microservices
 * Uses Eureka service discovery
 
-### 5. Service Registry
+### 6. Service Registry
 
 * Eureka Server
 * Registers and discovers microservices
@@ -109,6 +136,10 @@ Passwords are securely stored using **BCrypt hashing**.
 * Spring Cloud Eureka
 * Spring Cloud Gateway
 * OpenFeign
+* Apache Kafka
+* Spring Kafka
+* Resilience4j
+* Spring Boot Actuator
 * Maven
 * Docker
 * Docker Compose
@@ -123,6 +154,7 @@ ecommerce-microservices/
 ├── auth-service/
 ├── product-service/
 ├── order-service/
+├── notification-service/
 ├── service-registry/
 │
 ├── docker-compose.yml
@@ -160,16 +192,18 @@ docker compose down
 
 ## 🌐 Service Ports
 
-| Service            | Port |
-| ------------------ | ---: |
-| API Gateway        | 8080 |
-| Auth Service       | 8081 |
-| Product Service    | 8082 |
-| Order Service      | 8083 |
-| Eureka Server      | 8761 |
-| Auth PostgreSQL    | 5433 |
-| Product PostgreSQL | 5434 |
-| Order PostgreSQL   | 5435 |
+| Service              | Port |
+| -------------------- | ---: |
+| API Gateway          | 8080 |
+| Auth Service         | 8081 |
+| Product Service      | 8082 |
+| Order Service        | 8083 |
+| Notification Service | 8084 |
+| Eureka Server        | 8761 |
+| Kafka                | 9092 |
+| Auth PostgreSQL      | 5433 |
+| Product PostgreSQL   | 5434 |
+| Order PostgreSQL     | 5435 |
 
 ## 🔗 API Endpoints
 
@@ -206,7 +240,11 @@ http://localhost:8080
 
 ## 🔄 Inter-Service Communication
 
-The Order Service communicates with other services using **OpenFeign**.
+The application uses both **synchronous and asynchronous communication**.
+
+### Synchronous Communication
+
+Order Service communicates with Auth Service and Product Service using **OpenFeign**.
 
 ```text
 Order Service
@@ -220,14 +258,105 @@ Order Service
 
 Services are discovered dynamically through **Eureka Service Registry**.
 
+### Asynchronous Communication
+
+Kafka is used for event-driven communication between Order Service and Notification Service.
+
+```text
+Order Service
+     |
+     | OrderEvent
+     v
+   Kafka
+     |
+     | order-events
+     v
+Notification Service
+     |
+     v
+Notification
+```
+
+When an order is successfully placed, Order Service publishes an `OrderEvent` containing information such as:
+
+```json
+{
+  "orderId": 1,
+  "userId": 5,
+  "productId": 10,
+  "quantity": 2,
+  "totalAmount": 1999.98
+}
+```
+
+The Notification Service consumes this event and processes the notification.
+
+## 📨 Kafka
+
+### Topic
+
+```text
+order-events
+```
+
+### Producer
+
+```text
+Order Service
+```
+
+### Consumer
+
+```text
+Notification Service
+```
+
+Kafka enables asynchronous communication so that the Order Service does not need to directly call the Notification Service.
+
+## 🛡️ Resilience and Monitoring
+
+The application uses **Resilience4j** to improve resilience of inter-service communication.
+
+### Circuit Breaker
+
+Circuit breakers are implemented around Product Service communication to prevent repeated calls when the dependent service is unavailable.
+
+```text
+Order Service
+      |
+      v
+    Retry
+      |
+      v
+Circuit Breaker
+      |
+      v
+Product Service
+```
+
+### Retry
+
+Transient failures can be retried before triggering the fallback mechanism.
+
+### Actuator
+
+Spring Boot Actuator provides monitoring endpoints for application health and Resilience4j metrics.
+
+```text
+/actuator/health
+/actuator/metrics
+/actuator/circuitbreakers
+```
+
 ## 🗄️ Database Architecture
 
 Each microservice has its own PostgreSQL database.
 
 ```text
-Auth Service     → auth_db
-Product Service  → product_db
-Order Service    → order_db
+Auth Service          → auth_db
+Product Service       → product_db
+Order Service         → order_db
+Notification Service  → No database
 ```
 
 This follows the **database-per-service** approach used in microservice architectures.
@@ -244,6 +373,12 @@ This follows the **database-per-service** approach used in microservice architec
 * Service Discovery
 * API Gateway
 * OpenFeign
+* Apache Kafka
+* Event-Driven Architecture
+* Asynchronous Communication
+* Retry Pattern
+* Circuit Breaker Pattern
+* Spring Boot Actuator
 * Docker Containerization
 * Docker Compose
 * Inter-Service Communication
