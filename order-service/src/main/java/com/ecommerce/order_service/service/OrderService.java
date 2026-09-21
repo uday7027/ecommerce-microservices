@@ -8,8 +8,11 @@ import com.ecommerce.order_service.dto.ProductResponse;
 import com.ecommerce.order_service.dto.UserResponse;
 import com.ecommerce.order_service.entity.Order;
 import com.ecommerce.order_service.entity.OrderStatus;
+import com.ecommerce.order_service.event.OrderEvent;
 import com.ecommerce.order_service.repository.OrderRepository;
 import feign.FeignException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +26,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ProductClient productClient;
     private final AuthClient authClient;
+    private final KafkaProducerService kafkaProducerService;
 
     public OrderResponse placeOrder(String email, OrderRequest request){
         UserResponse user;
@@ -35,9 +39,7 @@ public class OrderService {
         ProductResponse product;
 
         try {
-            product = productClient.getProductById(
-                    request.getProductId()
-            );
+            product = getProduct(request.getProductId());
         } catch (FeignException.NotFound e) {
             throw new RuntimeException("Product not found");
         }
@@ -71,6 +73,16 @@ public class OrderService {
         Order savedOrder =
                 orderRepository.save(order);
 
+        OrderEvent event = OrderEvent.builder()
+                .orderId(savedOrder.getId())
+                .userId(savedOrder.getUserId())
+                .productId(savedOrder.getProductId())
+                .quantity(savedOrder.getQuantity())
+                .totalAmount(savedOrder.getTotalAmount())
+                .build();
+
+        kafkaProducerService.sendOrderEvent(event);
+
         return mapToResponse(savedOrder);
     }
 
@@ -99,6 +111,20 @@ public class OrderService {
                 .status(order.getStatus())
                 .createdAt(order.getCreatedAt())
                 .build();
+    }
+
+    @Retry(
+            name="ProductService",
+            fallbackMethod = "productServiceFallback")
+    @CircuitBreaker(
+            name="ProductService",
+            fallbackMethod = "productServiceFallback")
+    public ProductResponse getProduct(Long id){
+        return productClient.getProductById(id);
+    }
+
+    public ProductResponse productServiceFallback(Long id, Throwable throwable){
+        throw new RuntimeException("product service currently unavailable try after sometime!!");
     }
 }
 
