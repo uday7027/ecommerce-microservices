@@ -384,6 +384,36 @@ This follows the **database-per-service** approach used in microservice architec
 * Inter-Service Communication
 * Database-per-Service
 
+## ⚙️ Configuration
+
+Before running the application, update the `application.properties` files in each microservice with your corresponding configuration values.
+
+Replace all placeholders such as:
+
+```text
+<YOUR_VALUE>
+```
+
+with the appropriate values for your environment, including database credentials, JWT secret, Kafka configuration, and other required properties.
+
+### 🐳 Docker Compose Configuration
+
+Before starting the application with Docker Compose, review `docker-compose.yml` and replace any placeholder values with your corresponding configuration.
+
+For example:
+
+```yaml
+environment:
+  POSTGRES_DB: <YOUR_DATABASE_NAME>
+  POSTGRES_USER: <YOUR_DATABASE_USER>
+  POSTGRES_PASSWORD: <YOUR_DATABASE_PASSWORD>
+```
+
+Make sure that the database names, usernames, passwords, ports, Kafka configuration, and other environment-specific values are consistent with the corresponding `application.properties` files.
+
+> **Note:** Do not commit sensitive information such as passwords, API keys, JWT secrets, or database credentials to GitHub. Use environment variables or a local configuration file for sensitive values.
+
+
 ## 👨‍💻 Author
 
 **Uday Shinde**
